@@ -1,0 +1,17 @@
+.games-container {
+    min-width: 400px;
+    max-width: 50%;
+    margin: auto;
+}
+
+.grey-cell {
+    background-color: #D3D3D3;
+}
+
+.played {
+    background-color: #D0F0C0;
+}
+
+.missed {
+    background-color: #FFCBD1;
+}
