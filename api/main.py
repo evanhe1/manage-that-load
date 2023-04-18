@@ -1,6 +1,5 @@
 from nba_api.stats.endpoints import playergamelog, teamgamelog, commonplayerinfo, teamdashboardbygeneralsplits
 from nba_api.stats.static import players
-from api import app
 from flask import request, jsonify
 from datetime import datetime, timedelta
 from collections import OrderedDict
@@ -11,34 +10,6 @@ import numpy as np
 currentMonth = datetime.today().month
 currentYear = datetime.today().year
 leagueYear = currentYear if currentMonth >= 7 else currentYear-1
-# @app.after_request
-# def per_request_callbacks(response):
-#     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
-#     return response
-
-@app.route('/')
-@app.route('/games')
-def index():
-    player_id= int(request.args['id'])
-
-    player_hist = generate_transaction_history(player_id)
-
-    player_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id)
-    cur_team_id = player_info.get_data_frames()[0]["TEAM_ID"]
-    df_team_abr = player_info.get_data_frames()[0]["TEAM_ABBREVIATION"]
-    df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id).get_data_frames()[0]["GP"]
-    df_team = build_df_team(player_hist, cur_team_id)
-
-    playerGames = playergamelog.PlayerGameLog(player_id=player_id)
-    df_player = playerGames.get_data_frames()[0]
-
-    df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
-    df_gl["played"] = df_gl._merge != 'left_only'
-    df_gl = df_gl.drop('_merge', axis = 1)[["Game_ID", "GAME_DATE", "MATCHUP", "WL", "played"]]
-    return jsonify(gamelog=df_gl.to_dict(orient="index"), gp=df_gp.to_dict(), abr=df_team_abr.to_dict())
-    # response = Response(response=data, status=200, mimetype="application/json")
-    # response.headers.add('Access-Control-Allow-Origin', '*')
-    # return response
 
 def generate_transaction_history(player_id):
     response = requests.get("https://stats.nba.com/js/data/playermovement/NBA_Player_Movement.json")
@@ -78,7 +49,6 @@ def generate_transaction_history(player_id):
     
     return player_hist
 
-
 def build_df_team(player_hist, cur_team_id):
     df_team = pd.DataFrame()
     for stint in player_hist:
@@ -95,14 +65,30 @@ def build_df_team(player_hist, cur_team_id):
 def format_date(date):
     # produce mm/dd/yyyy
     return date[5:7].lstrip('0') + '/' + date[8:].lstrip('0') + '/' + date[0:4]
+player_id = 2544
+player_hist = generate_transaction_history(player_id)
 
-@app.route("/search")
+cur_team_id = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]["TEAM_ID"]
+df_games_left = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id).get_data_frames()[0]["GP"]
+df_team = build_df_team(player_hist, cur_team_id)
+
+playerGames = playergamelog.PlayerGameLog(player_id=player_id)
+df_player = playerGames.get_data_frames()[0]
+
+df_gp = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
+df_gp["played"] = df_gp._merge != 'left_only'
+df_gp = df_gp.drop('_merge', axis = 1)[["Game_ID", "GAME_DATE", "MATCHUP", "WL", "played"]]
+print(df_gp.to_dict(orient="index"))
+#response = Response(response=data, status=200, mimetype="application/json")
+#response.headers.add('Access-Control-Allow-Origin', '*')
+#return response
+
+
 def search():
     player_name = request.args['name']
     players_data = players.find_players_by_full_name(player_name)
     return [(player['id'], player['full_name']) for player in players_data if player["is_active"]]
 
-@app.route("/gp")
 def info():
     player_id= int(request.args['id'])
     team_id = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]["TEAM_ID"]

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import React, { useState, useEffect, useContext} from 'react';
+import React, { useState, useRef, useEffect, useContext } from 'react';
 import PlayerContext from "../context/PlayerContext"
 import 'bootstrap/dist/css/bootstrap.css';
 import './PlayerSearch.modules.css'
@@ -7,7 +7,8 @@ import './PlayerSearch.modules.css'
 function PlayerSearch() {
     const [dropdownVisible, setDropdownVisible] = useState(false);
     const [players, setPlayers] = useState([]);
-    const {playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames} = useContext(PlayerContext);
+    const isMountedRef = useRef(0)
+    const {playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx} = useContext(PlayerContext);
 
     const handleSubmit = function(e) {
         e.preventDefault();
@@ -16,7 +17,6 @@ function PlayerSearch() {
             const player = players[0]
             setPlayerID(player[0]); 
             setPlayerName(player[1]);
-            setDisplayName(player[1]);
             setDropdownVisible(false)
         }
     }
@@ -28,28 +28,47 @@ function PlayerSearch() {
 
     const handleClick = function(player) {
         setDropdownVisible(false); 
-        console.log(player[1])
         setPlayerName(player[1]);
     }
 
     useEffect(() => {
-        axios.get(`http://127.0.0.1:5000/players?name=${playerName}`, {
+        if (isMountedRef.current < 4) {
+            isMountedRef.current++;
+        }
+        else {
+        axios.get(`http://127.0.0.1:5000/search?name=${playerName}`, {
             headers: {
                 "Content-Type": "application/json"
             }
         }).then(res => {
                 setPlayers(res.data)
             }).catch(console.error)
+        }
     }, [playerName]) 
 
     useEffect(() => {
-        axios.get(`http://127.0.0.1:5000/search?id=${playerID}`, {
-            headers: {
-                "Content-Type": "application/json"
-            }
-        }).then(res => {
-                setPlayerGames(Object.values(res.data).map(game => Object.values(game)))
-            }).catch(console.error)
+        if (isMountedRef.current < 4) {
+            isMountedRef.current++
+        }
+        else {
+            setDisplayName(null);
+            const endpoints = [`http://127.0.0.1:5000/games?id=${playerID}`, `http://127.0.0.1:5000/gp?id=${playerID}`]
+            axios.get(`http://127.0.0.1:5000/games?id=${playerID}`, {
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }).then(res => {
+                    const games = res.data["gamelog"]
+                    const gp = res.data["gp"][0]
+                    const abr = res.data["abr"][0]
+                    const gamesArr = Object.values(games).map(game => Object.values(game));
+                    setPlayerGames(gamesArr);
+                    setTeamGP(gp)
+                    setDisplayName(playerName)
+                    setTeamAbr(abr)
+                    setDateToGameIdx(Object.fromEntries(gamesArr.map((game, idx) => [game[1], idx])))
+                }).catch(console.error)
+        }
     }, [playerID]) 
 
     return (
@@ -61,7 +80,6 @@ function PlayerSearch() {
                     name="name"
                     value={playerName}
                     onChange={handleChange}
-                    required
                     onFocus={() => setDropdownVisible(playerName !== "")}
                     onBlur={() => setDropdownVisible(false)}
                 />

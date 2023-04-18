@@ -2,14 +2,18 @@ import React, { createContext } from 'react';
 
 const PlayerContext = createContext(
     {
-        playerName: "", 
-        setPlayerName: () => {},
+        playerName: "",
+        setPlayerName: () => { },
         playerID: "",
-        setPlayerID: () => {},
+        setPlayerID: () => { },
         displayName: "",
-        setDisplayName: () => {},
+        setDisplayName: () => { },
         playerGames: [],
-        setPlayerGames: () => {}
+        setPlayerGames: () => { },
+        teamGP: 0,
+        setTeamGP: () => { },
+        dateToGameIdx: {},
+        setDateToGameIdx: () => { },
     })
 
 export default PlayerContext;

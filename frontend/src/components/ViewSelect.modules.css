@@ -1,0 +1,9 @@
+.btn-group {
+    --width: 80%;
+    width: var(--width);
+    left: calc((100% - var(--width)) / 2);
+}
+
+.btn-group .btn {
+    width: 50%;
+}

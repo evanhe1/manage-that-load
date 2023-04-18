@@ -1,11 +1,10 @@
-import React, { useState } from 'react'
-import PlayerContext from '../context/PlayerContext'
+import React from 'react'
 import 'bootstrap/dist/css/bootstrap.css';
 import './GamesFilter.modules.css'
 
 function GamesFilter(props) {
     const {playedVisible, setPlayedVisible, missedVisible, setMissedVisible} = props
-    
+
     return (
         <div className="container games-filter">
             <div className="form-check">

@@ -5,7 +5,7 @@ import 'bootstrap/dist/css/bootstrap.css';
 import "./GamesList.modules.css"
 
 function GamesList() {
-    const { playerGames } = useContext(PlayerContext)
+    const { playerGames, teamGP } = useContext(PlayerContext)
     const [playedVisible, setPlayedVisible] = useState(true)
     const [missedVisible, setMissedVisible] = useState(true)
 
