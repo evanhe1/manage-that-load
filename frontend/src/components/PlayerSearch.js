@@ -8,27 +8,34 @@ function PlayerSearch() {
     const [dropdownVisible, setDropdownVisible] = useState(false);
     const [players, setPlayers] = useState([]);
     const isMountedRef = useRef(0)
-    const {playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx} = useContext(PlayerContext);
+    const inputRef = useRef(null)
+    const { playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx } = useContext(PlayerContext);
 
-    const handleSubmit = function(e) {
+    const handleSubmit = function (e) {
         e.preventDefault();
-        if (players.length > 0)
-        {
-            const player = players[0]
-            setPlayerID(player[0]); 
+        if (players.length > 0) {
+            const player = players[0];
             setPlayerName(player[1]);
             setDropdownVisible(false)
+            // if (players.length === 1) {
+            //     setPlayerID(player[0]);
+            // }
+            setPlayerID(player[0])
         }
     }
 
-    const handleChange = function(e) {
+    const handleChange = function (e) {
         setPlayerName(e.target.value)
         setDropdownVisible(e.target.value !== "")
     }
 
-    const handleClick = function(player) {
-        setDropdownVisible(false); 
+    const handleClick = function (player) {
+        setDropdownVisible(false);
         setPlayerName(player[1]);
+        setTimeout(() => {
+            inputRef.current.focus();
+            setDropdownVisible(false);
+        }, 0)
     }
 
     useEffect(() => {
@@ -36,15 +43,15 @@ function PlayerSearch() {
             isMountedRef.current++;
         }
         else {
-        axios.get(`http://127.0.0.1:5000/search?name=${playerName}`, {
-            headers: {
-                "Content-Type": "application/json"
-            }
-        }).then(res => {
+            axios.get(`http://127.0.0.1:5000/search?name=${playerName}`, {
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            }).then(res => {
                 setPlayers(res.data)
             }).catch(console.error)
         }
-    }, [playerName]) 
+    }, [playerName])
 
     useEffect(() => {
         if (isMountedRef.current < 4) {
@@ -58,18 +65,19 @@ function PlayerSearch() {
                     "Content-Type": "application/json"
                 }
             }).then(res => {
-                    const games = res.data["gamelog"]
-                    const gp = res.data["gp"][0]
-                    const abr = res.data["abr"][0]
-                    const gamesArr = Object.values(games).map(game => Object.values(game));
-                    setPlayerGames(gamesArr);
-                    setTeamGP(gp)
-                    setDisplayName(playerName)
-                    setTeamAbr(abr)
-                    setDateToGameIdx(Object.fromEntries(gamesArr.map((game, idx) => [game[1], idx])))
-                }).catch(console.error)
+                console.log(res)
+                const games = res.data["gamelog"]
+                const gp = res.data["gp"]
+                const abr = res.data["abr"]
+                const gamesArr = Object.values(games).map(game => Object.values(game));
+                setPlayerGames(gamesArr);
+                setTeamGP(gp)
+                setDisplayName(playerName)
+                setTeamAbr(abr)
+                setDateToGameIdx(Object.fromEntries(gamesArr.map((game, idx) => [game[1], idx])))
+            }).catch(console.error)
         }
-    }, [playerID]) 
+    }, [playerID])
 
     return (
         <div className="container player-search">
@@ -80,6 +88,7 @@ function PlayerSearch() {
                     name="name"
                     value={playerName}
                     onChange={handleChange}
+                    ref={inputRef}
                     onFocus={() => setDropdownVisible(playerName !== "")}
                     onBlur={() => setDropdownVisible(false)}
                 />
