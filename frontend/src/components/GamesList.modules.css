@@ -4,6 +4,15 @@
     margin: auto;
 }
 
+.row {
+    position: relative;
+}
+
+.miss-cause-desc {
+    position: absolute;
+    left: 100%
+}
+
 .grey-cell {
     background-color: #D3D3D3;
 }

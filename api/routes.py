@@ -17,7 +17,7 @@ db = client.nba.player_info
 
 currentMonth = datetime.today().month
 currentYear = datetime.today().year
-leagueYear = currentYear if currentMonth >= 7 else currentYear-1
+leagueYear = 2022#currentYear if currentMonth >= 7 else currentYear-1
 # @app.after_request
 # def per_request_callbacks(response):
 #     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
@@ -51,7 +51,7 @@ def get_player_info(player_id):
     df_team = build_df_team(player_hist, cur_team_id)
 
     player_games = playergamelog.PlayerGameLog(player_id=player_id)
-    df_player = player_games.get_data_frames()[0]
+    df_player = player_games.get_data_frames()[0]\
 
     df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
     df_gl["played"] = df_gl._merge != 'left_only'
@@ -69,7 +69,7 @@ def generate_transaction_history(player_id):
     df["PLAYER_ID"] = df["PLAYER_ID"].astype(np.int64)
     df["TEAM_ID"] = df["TEAM_ID"].astype(np.int64)
     df["Additional_Sort"] = df["Additional_Sort"].astype(np.int64)
-    df = df[(df["PLAYER_ID"]==player_id) & (df["TRANSACTION_DATE"]>=f"{leagueYear}-10-01")][["Transaction_Type", "TRANSACTION_DATE", "TEAM_ID", "Additional_Sort"]][::-1]
+    df = df[(df["PLAYER_ID"]==player_id) & (df["TRANSACTION_DATE"]>=f"{leagueYear}-07-01")][["Transaction_Type", "TRANSACTION_DATE", "TEAM_ID", "Additional_Sort"]][::-1]
 
     player_hist = []
     for _, t in df.iterrows():
@@ -158,7 +158,7 @@ def annotate_player_games(injuries_hist, df_gl):
     for injury in injuries_hist:
         date_from = pd.to_datetime(injury["date_from"])
         date_to = pd.to_datetime(injury["date_to"])
-        df_gl.loc[(pd.to_datetime(df_gl['GAME_DATE'], format='%b %d, %Y') >= date_from) & (pd.to_datetime(df_gl['GAME_DATE'], format='%b %d, %Y') < date_to), 'miss_cause'] = injury["cause"]
+        df_gl.loc[(pd.to_datetime(df_gl['GAME_DATE'], format='%b %d, %Y') >= date_from) & (pd.to_datetime(df_gl['GAME_DATE'], format='%b %d, %Y') <= date_to), 'miss_cause'] = injury["cause"]
     return df_gl
 @app.route("/search")
 def search():
@@ -176,13 +176,12 @@ def info():
 
 @app.route("/update")
 def update():
-    db.delete_many({})
+    #db.delete_many({})
     player_list = players.get_active_players()
     for player in player_list:
         player_id = player["id"]
         print(player["full_name"])
         response = get_player_info(player_id)
-        data = json.loads(response.data)
-        data["player_id"] = player_id
-        db.insert_one(data)
+        db.insert_one(json.loads(response.data))
+        #db.replace_one({"player_id": player_id}, json.loads(response.data))
 
