@@ -3,24 +3,29 @@ import React, { useState, useRef, useEffect, useContext } from 'react';
 import PlayerContext from "../context/PlayerContext"
 import 'bootstrap/dist/css/bootstrap.css';
 import './PlayerSearch.modules.css'
+import { useNavigate, useLocation } from "react-router-dom";
+import { players, teams } from '../data'
 
 function PlayerSearch() {
     const [dropdownVisible, setDropdownVisible] = useState(false);
-    const [players, setPlayers] = useState([]);
+    const [searchResults, setSearchResults] = useState([]);
     const isMountedRef = useRef(0)
     const inputRef = useRef(null)
     const { playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx } = useContext(PlayerContext);
+    const navigate = useNavigate();
+    const loc = useLocation();
 
     const handleSubmit = function (e) {
         e.preventDefault();
-        if (players.length > 0) {
-            const player = players[0];
-            setPlayerName(player[1]);
+        if (searchResults.length > 0) {
+            const player = searchResults[0];
+            setPlayerName(player[3]);
             setDropdownVisible(false)
             // if (players.length === 1) {
             //     setPlayerID(player[0]);
             // }
             setPlayerID(player[0])
+            return navigate(`/players/${player[0]}`)
         }
     }
 
@@ -31,7 +36,7 @@ function PlayerSearch() {
 
     const handleClick = function (player) {
         setDropdownVisible(false);
-        setPlayerName(player[1]);
+        setPlayerName(player[3]);
         setTimeout(() => {
             inputRef.current.focus();
             setDropdownVisible(false);
@@ -39,22 +44,12 @@ function PlayerSearch() {
     }
 
     useEffect(() => {
-        if (isMountedRef.current < 4) {
-            isMountedRef.current++;
-        }
-        else {
-            axios.get(`http://127.0.0.1:5000/search?name=${playerName}`, {
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }).then(res => {
-                setPlayers(res.data)
-            }).catch(console.error)
-        }
+        const curResults = players.filter(player => player[3].toLowerCase().match(new RegExp(playerName.toLowerCase(), "g")) && player[4] === true)
+        setSearchResults(curResults);
     }, [playerName])
 
     useEffect(() => {
-        if (isMountedRef.current < 4) {
+        if (isMountedRef.current < 2) {
             isMountedRef.current++
         }
         else {
@@ -72,12 +67,23 @@ function PlayerSearch() {
                 const gamesArr = Object.values(games).map(game => Object.values(game));
                 setPlayerGames(gamesArr);
                 setTeamGP(gp)
-                setDisplayName(playerName)
+                const curResults = players.filter(player => player[0] === playerID && player[4] === true)
+                console.log(curResults)
+                if (curResults) {
+                    setDisplayName(curResults[0][3])
+                }
                 setTeamAbr(abr)
                 setDateToGameIdx(Object.fromEntries(gamesArr.map((game, idx) => [game[1], idx])))
             }).catch(console.error)
         }
     }, [playerID])
+
+    useEffect(() => {
+        const pathnameArr = loc.pathname.split('/');
+        if (pathnameArr.length === 3 && pathnameArr[1] === "players") {
+            setPlayerID(parseInt(pathnameArr[2]))
+        }
+    }, [loc])
 
     return (
         <div className="container player-search">
@@ -95,7 +101,7 @@ function PlayerSearch() {
                 <button className="input-group-text">Search</button>
             </form>
             <ul className="list-group dropdown-container">
-                {dropdownVisible && players.map(player => <button key={player[0]} className="list-group-item" onMouseDown={() => handleClick(player)}>{player[1]}</button>)}
+                {dropdownVisible && searchResults.map(player => <button key={player[0]} className="list-group-item" onMouseDown={() => handleClick(player)}>{player[3]}</button>)}
             </ul>
         </div>)
 }

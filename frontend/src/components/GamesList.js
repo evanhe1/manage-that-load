@@ -8,7 +8,6 @@ function GamesList() {
     const { playerGames, teamGP } = useContext(PlayerContext)
     const [playedVisible, setPlayedVisible] = useState(true)
     const [missedVisible, setMissedVisible] = useState(true)
-    console.log(playerGames)
 
     return ( // idx === 3 refers to "miss_cause" column
         <div className="games-container">

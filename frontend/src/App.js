@@ -1,5 +1,5 @@
 import React, { Fragment, useState } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import PlayerContext from './context/PlayerContext'
 import PlayerSearch from './components/PlayerSearch'
 import PlayerPage from "./components/PlayerPage";
@@ -14,10 +14,14 @@ function App() {
   const [teamAbr, setTeamAbr] = useState("");
   const [dateToGameIdx, setDateToGameIdx] = useState({});
   return (
-      <PlayerContext.Provider value={{ playerName, setPlayerName, playerID, setPlayerID, displayName, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx }}>
-          <PlayerSearch></PlayerSearch>
-          {displayName && <PlayerPage/>}
-      </PlayerContext.Provider>
+      <BrowserRouter>
+          <PlayerContext.Provider value={{ playerName, setPlayerName, playerID, setPlayerID, displayName, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx }}>
+              <PlayerSearch></PlayerSearch>
+              <Routes>
+                  <Route path="/players/:id" element={<PlayerPage/>} />
+              </Routes>
+          </PlayerContext.Provider>
+      </BrowserRouter>
   )
 }
 
