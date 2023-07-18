@@ -1,7 +1,7 @@
 from nba_api.stats.endpoints import playergamelog, teamgamelog, commonplayerinfo, teamdashboardbygeneralsplits
 from nba_api.stats.static import players
 from api import app
-from flask import request, jsonify
+from flask import request, jsonify, Response
 from datetime import datetime, timedelta
 import requests
 import pandas as pd
@@ -51,7 +51,7 @@ def get_player_info(player_id):
     df_team = build_df_team(player_hist, cur_team_id)
 
     player_games = playergamelog.PlayerGameLog(player_id=player_id)
-    df_player = player_games.get_data_frames()[0]\
+    df_player = player_games.get_data_frames()[0]
 
     df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
     df_gl["played"] = df_gl._merge != 'left_only'
@@ -69,7 +69,7 @@ def generate_transaction_history(player_id):
     df["PLAYER_ID"] = df["PLAYER_ID"].astype(np.int64)
     df["TEAM_ID"] = df["TEAM_ID"].astype(np.int64)
     df["Additional_Sort"] = df["Additional_Sort"].astype(np.int64)
-    df = df[(df["PLAYER_ID"]==player_id) & (df["TRANSACTION_DATE"]>=f"{leagueYear}-07-01")][["Transaction_Type", "TRANSACTION_DATE", "TEAM_ID", "Additional_Sort"]][::-1]
+    df = df[(df["PLAYER_ID"]==player_id) & (df["TRANSACTION_DATE"]>=f"{leagueYear}-07-01") & (df["TRANSACTION_DATE"]<=f"{leagueYear+1}-06-30")][["Transaction_Type", "TRANSACTION_DATE", "TEAM_ID", "Additional_Sort"]][::-1]
 
     player_hist = []
     for _, t in df.iterrows():
@@ -97,7 +97,6 @@ def generate_transaction_history(player_id):
                 player_hist[-1]["date_to"] = prev_date_str
             else:
                 player_hist.append({"team_id": t_team_1, "date_from": None, "date_to": prev_date_str})
-
     return player_hist
 
 
@@ -179,9 +178,9 @@ def update():
     #db.delete_many({})
     player_list = players.get_active_players()
     for player in player_list:
-        player_id = player["id"]
         print(player["full_name"])
+        player_id = player["id"]
         response = get_player_info(player_id)
-        db.insert_one(json.loads(response.data))
-        #db.replace_one({"player_id": player_id}, json.loads(response.data))
+        db.replace_one({"player_id": player_id}, json.loads(response.data))
+    return Response(status=200)
 

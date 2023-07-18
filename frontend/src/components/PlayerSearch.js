@@ -4,7 +4,7 @@ import PlayerContext from "../context/PlayerContext"
 import 'bootstrap/dist/css/bootstrap.css';
 import './PlayerSearch.modules.css'
 import { useNavigate, useLocation } from "react-router-dom";
-import { players, teams } from '../data'
+import { players, teams, teamToColor } from '../data'
 
 function PlayerSearch() {
     const [dropdownVisible, setDropdownVisible] = useState(false);
@@ -55,7 +55,7 @@ function PlayerSearch() {
         else {
             setDisplayName(null);
             const endpoints = [`http://127.0.0.1:5000/games?id=${playerID}`, `http://127.0.0.1:5000/gp?id=${playerID}`]
-            axios.get(`http://127.0.0.1:5000/games?id=${playerID}`, {
+            axios.get(`http://127.0.0.1:8001/games?id=${playerID}`, {
                 headers: {
                     "Content-Type": "application/json"
                 }
@@ -79,6 +79,11 @@ function PlayerSearch() {
     }, [playerID])
 
     useEffect(() => {
+        window.scrollTo({
+          top: 0,
+          left: 0,
+          behavior: "instant"
+        });
         const pathnameArr = loc.pathname.split('/');
         if (pathnameArr.length === 3 && pathnameArr[1] === "players") {
             setPlayerID(parseInt(pathnameArr[2]))
@@ -86,8 +91,8 @@ function PlayerSearch() {
     }, [loc])
 
     return (
-        <div className="container player-search">
-            <form className="input-group" onSubmit={handleSubmit}>
+        <div className="container search-container">
+            <form className="input-group search-input" onSubmit={handleSubmit}>
                 <input
                     className="form-control"
                     type="text"
