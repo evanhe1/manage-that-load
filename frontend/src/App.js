@@ -1,7 +1,7 @@
 import React, { Fragment, useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import PlayerContext from './context/PlayerContext'
-import PlayerSearch from './components/PlayerSearch'
+import NavBar from './components/NavBar'
 import PlayerPage from "./components/PlayerPage";
 import HomePage from "./components/HomePage";
 import NotFound from "./components/NotFound";
@@ -18,7 +18,7 @@ function App() {
   return (
       <BrowserRouter>
           <PlayerContext.Provider value={{ playerName, setPlayerName, playerID, setPlayerID, displayName, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx }}>
-              <PlayerSearch></PlayerSearch>
+              <NavBar/>
               <Routes>
                   {["/", "/home"].map(pathStr => <Route path={pathStr} element={<HomePage/>} />)}
                   <Route path="/players/:id" element={<PlayerPage/>} />

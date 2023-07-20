@@ -7,8 +7,8 @@ function Day(props) {
     const { date } = props;
 
     function getDayNum(fullDate) {
-        date = new Date(fullDate);
-        return date.getDate();
+        const curDate = new Date(fullDate);
+        return curDate.getDate();
     }
 
     function getStyle(date) {
@@ -23,13 +23,20 @@ function Day(props) {
         else
             return '';
     }
+
+    console.log(playerGames[dateToGameIdx[date]])
     
     return (<div className={`day ${getStyle(date)}`}>{(() => {
             const dateObj = new Date(date);
             return dateObj.getDate();
         })()}
-        </div>)
-
+        <div className="game-info">
+            {playerGames[dateToGameIdx[date]] && playerGames[dateToGameIdx[date]][3] + " " + playerGames[dateToGameIdx[date]][2].slice(4)}
+        </div>
+        <div className="game-info">
+            {playerGames[dateToGameIdx[date]] && playerGames[dateToGameIdx[date]][5]}
+        </div>
+    </div>)
 }
 
 export default Day;
