@@ -7,10 +7,11 @@ import requests
 import pandas as pd
 import numpy as np
 import json
+import os
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
 
-uri = "***REMOVED***"
+uri = os.environ.get("MONGO_URI")
 client = MongoClient(uri)
 
 db = client.nba.player_info

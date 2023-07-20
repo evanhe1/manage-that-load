@@ -3,3 +3,33 @@
     flex-direction: column;
     justify-content: center;
 }
+
+.group-header {
+    margin-top: 8px;
+}
+
+.info-container {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.headshot-container {
+    position: relative;
+    height: 50px;
+    width: 50px;
+    border-radius: 50%;
+    overflow: hidden;
+    background-color: #D3D3D3;
+    margin-right: 15px;
+}
+
+.player-headshot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 125%;
+    max-height: 125%;
+}

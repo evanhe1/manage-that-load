@@ -1,0 +1,12 @@
+.home-button {
+    height: 30px;
+    padding: 5px 15px 5px 15px;
+    float: right;
+}
+
+.nav-container {
+    position: fixed;
+    width: 100%;
+    z-index: 999;
+    background-color: white;
+}
