@@ -4,14 +4,12 @@ import GamesFilter from './GamesFilter'
 import 'bootstrap/dist/css/bootstrap.css';
 import "./GamesList.modules.css"
 
-function GamesList() {
+function GamesList(props) {
     const { playerGames, teamGP } = useContext(PlayerContext)
-    const [playedVisible, setPlayedVisible] = useState(true)
-    const [missedVisible, setMissedVisible] = useState(true)
+    const { playedVisible, missedVisible } = props;
 
     return ( // idx === 3 refers to "miss_cause" column
         <div className="games-container">
-            <GamesFilter playedVisible={playedVisible} setPlayedVisible={setPlayedVisible} missedVisible={missedVisible} setMissedVisible={setMissedVisible}></GamesFilter>
                 {playerGames.map(([game_id, game_date, matchup, result, played, miss_cause, ...rest], r) =>
                 <div className="row" key={game_id}>
                     {(playedVisible && played || missedVisible && !played) && [game_date, matchup, result].map((data, idx) =>

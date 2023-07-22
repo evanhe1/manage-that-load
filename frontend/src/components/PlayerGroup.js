@@ -9,7 +9,7 @@ function PlayerGroup(props) {
         <div className="player-group-container">
             <h2 className='group-header'>{startingLetter}</h2>
             {filteredPlayers.map(player =>
-                <div className='info-container'>
+                <div className='info-container' key={player[0]}>
                     <div className='headshot-container'>
                         <img src={`https://cdn.nba.com/headshots/nba/latest/260x190/${player[0]}.png`} className={'player-headshot'}></img>
                     </div>

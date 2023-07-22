@@ -51,7 +51,7 @@ def get_player_info(player_id):
     df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id).get_data_frames()[0]["GP"]
     df_team = build_df_team(player_hist, cur_team_id)
 
-    player_games = playergamelog.PlayerGameLog(player_id=player_id)
+    player_games = playergamelog.PlayerGameLog(player_id=player_id, season=2022)
     df_player = player_games.get_data_frames()[0]
 
     df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
@@ -182,6 +182,7 @@ def update():
         print(player["full_name"])
         player_id = player["id"]
         response = get_player_info(player_id)
-        db.replace_one({"player_id": player_id}, json.loads(response.data))
+        #db.replace_one({"player_id": player_id}, json.loads(response.data))
+        return
     return Response(status=200)
 
