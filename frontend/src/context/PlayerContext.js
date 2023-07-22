@@ -14,6 +14,8 @@ const PlayerContext = createContext(
         setTeamGP: () => { },
         dateToGameIdx: {},
         setDateToGameIdx: () => { },
+        season: "",
+        setSeason: () => {}
     })
 
 export default PlayerContext;

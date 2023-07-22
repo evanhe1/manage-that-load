@@ -15,12 +15,13 @@ function App() {
   const [teamGP, setTeamGP] = useState(0);
   const [teamAbr, setTeamAbr] = useState("");
   const [dateToGameIdx, setDateToGameIdx] = useState({});
+  const [season, setSeason] = useState("2022-23");
   return (
       <BrowserRouter>
-          <PlayerContext.Provider value={{ playerName, setPlayerName, playerID, setPlayerID, displayName, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx }}>
+          <PlayerContext.Provider value={{ playerName, setPlayerName, playerID, setPlayerID, displayName, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx, season, setSeason }}>
               <NavBar/>
               <Routes>
-                  {["/", "/home"].map(pathStr => <Route path={pathStr} element={<HomePage/>} />)}
+                  {["/", "/home"].map(pathStr => <Route path={pathStr} key={pathStr} element={<HomePage/>} />)}
                   <Route path="/players/:id" element={<PlayerPage/>} />
                   <Route path="*" element={<NotFound/>} />
               </Routes>
