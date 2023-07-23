@@ -24,6 +24,7 @@ function Day(props) {
             return '';
     }
     
+    
     return (<div className={`day ${getStyle(date)}`}>{(() => {
             const dateObj = new Date(date);
             return dateObj.getDate();
