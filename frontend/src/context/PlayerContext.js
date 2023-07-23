@@ -12,10 +12,14 @@ const PlayerContext = createContext(
         setPlayerGames: () => { },
         teamGP: 0,
         setTeamGP: () => { },
+        teamAbr: "",
+        setTeamAbr: () => {},
         dateToGameIdx: {},
         setDateToGameIdx: () => { },
         season: "",
-        setSeason: () => {}
+        setSeason: () => {},
+        gamelogs: {},
+        setGamelogs: () => {}
     })
 
 export default PlayerContext;

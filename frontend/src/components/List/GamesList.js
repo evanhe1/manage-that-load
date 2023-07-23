@@ -1,6 +1,5 @@
 import React, { useState, useContext } from 'react'
-import PlayerContext from '../context/PlayerContext'
-import GamesFilter from './GamesFilter'
+import PlayerContext from '../../context/PlayerContext'
 import 'bootstrap/dist/css/bootstrap.css';
 import "./GamesList.modules.css"
 
@@ -10,7 +9,7 @@ function GamesList(props) {
 
     return ( // idx === 3 refers to "miss_cause" column
         <div className="games-container">
-                {playerGames.map(([game_id, game_date, matchup, result, played, miss_cause, ...rest], r) =>
+                {[...playerGames].reverse().map(([game_id, game_date, matchup, result, played, miss_cause, ...rest], r) =>
                 <div className="row" key={game_id}>
                     {(playedVisible && played || missedVisible && !played) && [game_date, matchup, result].map((data, idx) =>
                     <div key={data} className=

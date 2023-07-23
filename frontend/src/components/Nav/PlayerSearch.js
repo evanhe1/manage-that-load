@@ -1,17 +1,17 @@
 import axios from 'axios';
 import React, { useState, useRef, useEffect, useContext } from 'react';
-import PlayerContext from "../context/PlayerContext"
+import PlayerContext from "../../context/PlayerContext"
 import 'bootstrap/dist/css/bootstrap.css';
 import './PlayerSearch.modules.css'
 import { useNavigate, useLocation } from "react-router-dom";
-import { players, teams, teamToColor } from '../data'
+import { players, teams, teamToColor, curSeason } from '../../data'
 
 function PlayerSearch() {
     const [dropdownVisible, setDropdownVisible] = useState(false);
     const [searchResults, setSearchResults] = useState([]);
     const isMountedRef = useRef(0)
     const inputRef = useRef(null)
-    const { playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx } = useContext(PlayerContext);
+    const { playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs } = useContext(PlayerContext);
     const navigate = useNavigate();
     const loc = useLocation();
 
@@ -60,15 +60,24 @@ function PlayerSearch() {
                     "Content-Type": "application/json"
                 }
             }).then(res => {
-                console.log(res)
-                const games = res.data["gamelog"]
-                const gp = res.data["gp"]
-                const abr = res.data["abr"]
+                //console.log(res)
+                const curGamelogs = {};
+                for (const label in res.data) {
+                    if (label !== 'player_id' && label !== '_id') {
+                        curGamelogs[label] = res.data[label];
+                    }
+
+                }
+                // console.log(curGamelogs)
+                const games = res.data[curSeason]["gamelog"]
+                const gp = res.data[curSeason]["gp"]
+                const abr = res.data[curSeason]["abr"]
                 const gamesArr = Object.values(games).map(game => Object.values(game));
                 setPlayerGames(gamesArr);
                 setTeamGP(gp)
+                setGamelogs(curGamelogs)
                 const curResults = players.filter(player => player[0] === playerID && player[4] === true)
-                console.log(curResults)
+                //console.log(curResults)
                 if (curResults) {
                     setDisplayName(curResults[0][3])
                 }

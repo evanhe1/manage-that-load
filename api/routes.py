@@ -1,4 +1,4 @@
-from nba_api.stats.endpoints import playergamelog, teamgamelog, commonplayerinfo, teamdashboardbygeneralsplits
+from nba_api.stats.endpoints import playergamelog, teamgamelog, commonplayerinfo, teamdashboardbygeneralsplits, playerprofilev2
 from nba_api.stats.static import players
 from api import app
 from flask import request, jsonify, Response
@@ -18,7 +18,7 @@ db = client.nba.player_info
 
 currentMonth = datetime.today().month
 currentYear = datetime.today().year
-leagueYear = 2022#currentYear if currentMonth >= 7 else currentYear-1
+leagueYear = currentYear if currentMonth >= 7 else currentYear-1
 # @app.after_request
 # def per_request_callbacks(response):
 #     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
@@ -31,8 +31,8 @@ def index():
     query = {"player_id": player_id}
     document = db.find_one(query)
     if document:
-        return jsonify(gamelog=document['gamelog'], gp=document['gp'], abr=document['abr'],
-                       player_id=player_id)
+        document_dict = json.loads(json.dumps(document, default=str))
+        return jsonify(document_dict)
     else:
         response = get_player_info(player_id)
         db.replace_one({"player_id": player_id}, json.loads(response.data))
@@ -42,35 +42,52 @@ def index():
     # return response
 
 def get_player_info(player_id):
-    player_hist = generate_transaction_history(player_id)
-    injuries_hist = generate_injury_history(player_id)
+    data = {}
+    df = playerprofilev2.PlayerProfileV2(player_id=player_id).get_data_frames()[0]
+    season_to_team = {df["SEASON_ID"][i]: {"TEAM_ID": str(df["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df["TEAM_ABBREVIATION"][i])} for i in df["SEASON_ID"].keys()}
+    rookie_season = int(list(season_to_team.keys())[0][:4]) if season_to_team.keys() else None
+    for season in season_to_team.keys():
+        print(season)
+        if season in season_to_team:
+            league_year = int(season[:4])
+            if league_year < rookie_season: # skip years when player was not in the league
+                continue
 
-    player_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id)
-    cur_team_id = player_info.get_data_frames()[0]["TEAM_ID"]
-    df_team_abr = player_info.get_data_frames()[0]["TEAM_ABBREVIATION"]
-    df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id).get_data_frames()[0]["GP"]
-    df_team = build_df_team(player_hist, cur_team_id)
+            player_hist = generate_transaction_history(player_id, season)
+            injuries_hist = generate_injury_history(player_id, season)
 
-    player_games = playergamelog.PlayerGameLog(player_id=player_id, season=2022)
-    df_player = player_games.get_data_frames()[0]
+            cur_team_id = season_to_team[season]["TEAM_ID"]
+            cur_team_abr = season_to_team[season]["TEAM_ABBREVIATION"]
 
-    df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
-    df_gl["played"] = df_gl._merge != 'left_only'
-    df_gl = df_gl.drop('_merge', axis=1)[["Game_ID", "GAME_DATE", "MATCHUP", "WL", "played"]]
-    df_gl["miss_cause"] = None
-    df_gl = annotate_player_games(injuries_hist, df_gl)
-    response = jsonify(gamelog=df_gl.to_dict(orient="index"), gp=int(df_gp.to_string(index=False)), abr=df_team_abr.to_string(index=False),
-                       player_id=player_id)
+            df_team = build_df_team(player_hist, cur_team_id, season)
+
+            player_games = playergamelog.PlayerGameLog(player_id=player_id, season=season)
+            df_player = player_games.get_data_frames()[0]
+
+            df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
+            df_gl["played"] = df_gl._merge != 'left_only'
+            df_gl = df_gl.drop('_merge', axis=1)[["Game_ID", "GAME_DATE", "MATCHUP", "WL", "played"]]
+            df_gl["miss_cause"] = None
+            df_gl = annotate_player_games(injuries_hist, df_gl)
+            data[season] = {}
+            data[season]['gamelog'] = df_gl.to_dict(orient="index")
+            data[season]['abr'] = cur_team_abr
+            if league_year == currentYear:
+                df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id, season=season).get_data_frames()[0]["GP"]
+                data[season]['gp'] = int(df_gp.to_string(index=False))
+    data['player_id'] = player_id
+    response = jsonify(data)
     return response
 
-def generate_transaction_history(player_id):
+def generate_transaction_history(player_id, season):
     response = requests.get("https://stats.nba.com/js/data/playermovement/NBA_Player_Movement.json")
     transactions = response.json()['NBA_Player_Movement']['rows']
     df = pd.DataFrame.from_dict(transactions)
     df["PLAYER_ID"] = df["PLAYER_ID"].astype(np.int64)
     df["TEAM_ID"] = df["TEAM_ID"].astype(np.int64)
     df["Additional_Sort"] = df["Additional_Sort"].astype(np.int64)
-    df = df[(df["PLAYER_ID"]==player_id) & (df["TRANSACTION_DATE"]>=f"{leagueYear}-07-01") & (df["TRANSACTION_DATE"]<=f"{leagueYear+1}-06-30")][["Transaction_Type", "TRANSACTION_DATE", "TEAM_ID", "Additional_Sort"]][::-1]
+    league_year = int(season[:4])
+    df = df[(df["PLAYER_ID"]==player_id) & (df["TRANSACTION_DATE"]>=f"{league_year}-07-01") & (df["TRANSACTION_DATE"]<=f"{league_year+1}-06-30")][["Transaction_Type", "TRANSACTION_DATE", "TEAM_ID", "Additional_Sort"]][::-1]
 
     player_hist = []
     for _, t in df.iterrows():
@@ -98,30 +115,35 @@ def generate_transaction_history(player_id):
                 player_hist[-1]["date_to"] = prev_date_str
             else:
                 player_hist.append({"team_id": t_team_1, "date_from": None, "date_to": prev_date_str})
+
+    if player_hist and player_hist[-1]["date_to"] is None:
+        player_hist[-1]["date_to"] = f"07/01/{league_year+1}"
     return player_hist
 
 
-def build_df_team(player_hist, cur_team_id):
+def build_df_team(player_hist, cur_team_id, season):
     df_team = pd.DataFrame()
     # reverse order so most recent team info comes first
-    for stint in player_hist[::-1]:
-        team_id = stint["team_id"]
-        date_from = stint["date_from"]
-        date_to = stint["date_to"]
-        new_team = teamgamelog.TeamGameLog(team_id=team_id, date_from_nullable=date_from, date_to_nullable=date_to).get_data_frames()[0]
-        df_team = pd.concat([df_team, new_team])
-    if not player_hist:
+    if player_hist:
+        for stint in player_hist[::-1]:
+            team_id = stint["team_id"]
+            date_from = stint["date_from"]
+            date_to = stint["date_to"]
+            new_team = teamgamelog.TeamGameLog(team_id=team_id, season=season, date_from_nullable=date_from, date_to_nullable=date_to).get_data_frames()[0]
+            df_team = pd.concat([df_team, new_team])
+    else:
         team_id = cur_team_id
-        df_team = teamgamelog.TeamGameLog(team_id=team_id).get_data_frames()[0]
+        df_team = teamgamelog.TeamGameLog(team_id=team_id, season=season).get_data_frames()[0]
     return df_team
 
 def format_date(date):
     # produce mm/dd/yyyy
     return date[5:7].lstrip('0') + '/' + date[8:].lstrip('0') + '/' + date[0:4]
 
-def generate_injury_history(player_id):
+def generate_injury_history(player_id, season):
     player_name = players.find_player_by_id(player_id)['full_name'].replace(" ", "+")
-    url = f"https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player={player_name}&Team=&BeginDate=2022-07-01&EndDate=2023-06-30&ILChkBx=yes&InjuriesChkBx=yes&PersonalChkBx=yes&DisciplinaryChkBx=yes&Submit=Search"
+    league_year = int(season[:4])
+    url = f"https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player={player_name}&Team=&BeginDate={league_year}-07-01&EndDate={league_year+1}-06-30&ILChkBx=yes&InjuriesChkBx=yes&PersonalChkBx=yes&DisciplinaryChkBx=yes&Submit=Search"
     response = requests.get(url)
     soup = BeautifulSoup(response.content, "html.parser")
 
@@ -150,7 +172,7 @@ def generate_injury_history(player_id):
             injuries_hist[-1]["date_to"] = injury["date"]
 
     if injuries_hist and injuries_hist[-1]["date_to"] is None:
-        injuries_hist[-1]["date_to"] = f"{leagueYear+1}-07-01"
+        injuries_hist[-1]["date_to"] = f"{league_year+1}-07-01"
     return injuries_hist
 
 def annotate_player_games(injuries_hist, df_gl):
@@ -178,11 +200,17 @@ def info():
 def update():
     #db.delete_many({})
     player_list = players.get_active_players()
-    for player in player_list:
+    for player in player_list[380:]:
         print(player["full_name"])
         player_id = player["id"]
         response = get_player_info(player_id)
-        #db.replace_one({"player_id": player_id}, json.loads(response.data))
-        return
+        db.replace_one({"player_id": player_id}, json.loads(response.data))
     return Response(status=200)
+
+@app.route("/test")
+def test():
+    df = playerprofilev2.PlayerProfileV2(player_id=2544).get_data_frames()[0]
+    season_to_team = {df["SEASON_ID"][i]: {"TEAM_ID": str(df["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df["TEAM_ABBREVIATION"][i])} for i in df["SEASON_ID"].keys()}
+    print(season_to_team)
+    return jsonify(season_to_team)
 

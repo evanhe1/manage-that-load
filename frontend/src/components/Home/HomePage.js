@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import PlayerGroup from './PlayerGroup';
-import { players } from '../data'
+import { players } from '../../data'
 import "./HomePage.modules.css"
 
 const alphabet = [ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',

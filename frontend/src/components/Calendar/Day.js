@@ -1,5 +1,5 @@
 import React, { useRef, useContext } from 'react';
-import PlayerContext from '../context/PlayerContext';
+import PlayerContext from '../../context/PlayerContext';
 import './Day.modules.css';
 
 function Day(props) {
@@ -23,8 +23,6 @@ function Day(props) {
         else
             return '';
     }
-
-    console.log(playerGames[dateToGameIdx[date]])
     
     return (<div className={`day ${getStyle(date)}`}>{(() => {
             const dateObj = new Date(date);

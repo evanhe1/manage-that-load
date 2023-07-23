@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom'
-import {players, teams } from '../data';
+import {players, teams } from '../../data';
 import "./PlayerGroup.modules.css"
 
 function PlayerGroup(props) {
