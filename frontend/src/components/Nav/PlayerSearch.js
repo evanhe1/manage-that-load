@@ -17,7 +17,7 @@ function PlayerSearch() {
 
     const handleSubmit = function (e) {
         e.preventDefault();
-        if (searchResults.length > 0) {
+        if (playerName.length > 0 && searchResults.length > 0) {
             const player = searchResults[0];
             setPlayerName(player[3]);
             setDropdownVisible(false)
@@ -49,18 +49,18 @@ function PlayerSearch() {
     }, [playerName])
 
     useEffect(() => {
-        if (isMountedRef.current < 2) {
+        if (isMountedRef.current < 1) {
             isMountedRef.current++
         }
         else {
             setDisplayName(null);
             const endpoints = [`http://127.0.0.1:5000/games?id=${playerID}`, `http://127.0.0.1:5000/gp?id=${playerID}`]
-            axios.get(`http://127.0.0.1:8001/games?id=${playerID}`, {
+            axios.get(`https://mtl-backend-3wnzf7w4ia-uc.a.run.app/games?id=${playerID}`, {
                 headers: {
                     "Content-Type": "application/json"
                 }
             }).then(res => {
-                //console.log(res)
+                // console.log(res)
                 const curGamelogs = {};
                 for (const label in res.data) {
                     if (label !== 'player_id' && label !== '_id') {

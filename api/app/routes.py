@@ -1,6 +1,6 @@
 from nba_api.stats.endpoints import playergamelog, teamgamelog, commonplayerinfo, teamdashboardbygeneralsplits, playerprofilev2
 from nba_api.stats.static import players
-from api import app
+from . import app
 from flask import request, jsonify, Response
 from datetime import datetime, timedelta
 import requests
@@ -43,38 +43,45 @@ def index():
 
 def get_player_info(player_id):
     data = {}
-    df = playerprofilev2.PlayerProfileV2(player_id=player_id).get_data_frames()[0]
-    season_to_team = {df["SEASON_ID"][i]: {"TEAM_ID": str(df["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df["TEAM_ABBREVIATION"][i])} for i in df["SEASON_ID"].keys()}
-    rookie_season = int(list(season_to_team.keys())[0][:4]) if season_to_team.keys() else None
-    for season in season_to_team.keys():
+    df_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]
+    df_profile = playerprofilev2.PlayerProfileV2(player_id=player_id).get_data_frames()[0]
+    season_to_team = {df_profile["SEASON_ID"][i]: {"TEAM_ID": str(df_profile["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df_profile["TEAM_ABBREVIATION"][i])} for i in df_profile["SEASON_ID"].keys()}
+    first_played_season = list(season_to_team.keys())[0] if season_to_team.keys() else None
+    cur_season = int(df_info["FROM_YEAR"].iloc[0])
+    while f"{cur_season}-{int(str(cur_season)[2:])+1:02}" not in season_to_team and cur_season < currentYear:
+        season_id = f"{cur_season}-{int(str(cur_season)[2:])+1:02}"
+        if first_played_season:
+            season_to_team[season_id] = {"TEAM_ID": season_to_team[first_played_season]["TEAM_ID"], "TEAM_ABBREVIATION": season_to_team[first_played_season]["TEAM_ABBREVIATION"]}
+        else:
+            season_to_team[season_id] = {"TEAM_ID": df_info["TEAM_ID"].iloc[0], "TEAM_ABBREVIATION": df_info["TEAM_ABBREVIATION"].iloc[0]}
+        cur_season+=1
+
+    for season in sorted(season_to_team.keys()):
         print(season)
-        if season in season_to_team:
-            league_year = int(season[:4])
-            if league_year < rookie_season: # skip years when player was not in the league
-                continue
+        league_year = int(season[:4])
 
-            player_hist = generate_transaction_history(player_id, season)
-            injuries_hist = generate_injury_history(player_id, season)
+        player_hist = generate_transaction_history(player_id, season)
+        injuries_hist = generate_injury_history(player_id, season)
 
-            cur_team_id = season_to_team[season]["TEAM_ID"]
-            cur_team_abr = season_to_team[season]["TEAM_ABBREVIATION"]
+        cur_team_id = season_to_team[season]["TEAM_ID"]
+        cur_team_abr = season_to_team[season]["TEAM_ABBREVIATION"]
 
-            df_team = build_df_team(player_hist, cur_team_id, season)
+        df_team = build_df_team(player_hist, cur_team_id, season)
 
-            player_games = playergamelog.PlayerGameLog(player_id=player_id, season=season)
-            df_player = player_games.get_data_frames()[0]
+        player_games = playergamelog.PlayerGameLog(player_id=player_id, season=season)
+        df_player = player_games.get_data_frames()[0]
 
-            df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
-            df_gl["played"] = df_gl._merge != 'left_only'
-            df_gl = df_gl.drop('_merge', axis=1)[["Game_ID", "GAME_DATE", "MATCHUP", "WL", "played"]]
-            df_gl["miss_cause"] = None
-            df_gl = annotate_player_games(injuries_hist, df_gl)
-            data[season] = {}
-            data[season]['gamelog'] = df_gl.to_dict(orient="index")
-            data[season]['abr'] = cur_team_abr
-            if league_year == currentYear:
-                df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id, season=season).get_data_frames()[0]["GP"]
-                data[season]['gp'] = int(df_gp.to_string(index=False))
+        df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
+        df_gl["played"] = df_gl._merge != 'left_only'
+        df_gl = df_gl.drop('_merge', axis=1)[["Game_ID", "GAME_DATE", "MATCHUP", "WL", "played"]]
+        df_gl["miss_cause"] = None
+        df_gl = annotate_player_games(injuries_hist, df_gl)
+        data[season] = {}
+        data[season]['gamelog'] = df_gl.to_dict(orient="index")
+        data[season]['abr'] = cur_team_abr
+        if league_year == currentYear:
+            df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id, season=season).get_data_frames()[0]["GP"]
+            data[season]['gp'] = int(df_gp.to_string(index=False))
     data['player_id'] = player_id
     response = jsonify(data)
     return response
@@ -200,17 +207,26 @@ def info():
 def update():
     #db.delete_many({})
     player_list = players.get_active_players()
-    for player in player_list[380:]:
+    for player in player_list:
         print(player["full_name"])
         player_id = player["id"]
         response = get_player_info(player_id)
+        if not response:
+            continue
         db.replace_one({"player_id": player_id}, json.loads(response.data))
     return Response(status=200)
 
 @app.route("/test")
 def test():
-    df = playerprofilev2.PlayerProfileV2(player_id=2544).get_data_frames()[0]
-    season_to_team = {df["SEASON_ID"][i]: {"TEAM_ID": str(df["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df["TEAM_ABBREVIATION"][i])} for i in df["SEASON_ID"].keys()}
-    print(season_to_team)
-    return jsonify(season_to_team)
+    df = commonplayerinfo.CommonPlayerInfo(player_id=1631096).get_data_frames()[0]
+    #season_to_team = {df["SEASON_ID"][i]: {"TEAM_ID": str(df["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df["TEAM_ABBREVIATION"][i])} for i in df["SEASON_ID"].keys()}
+    #print(season_to_team)
+    return jsonify(df.to_dict())
+
+@app.route("/update_single")
+def update_single():
+    player_id = int(request.args['id'])
+    response = get_player_info(player_id)
+    db.replace_one({"player_id": player_id}, json.loads(response.data))
+    return Response(status=200)
 

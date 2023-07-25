@@ -21,10 +21,8 @@ function PlayerPage() {
 
     function getSundayBound(dateStr, boundDirection) {
         let date = new Date(dateStr)
-        console.log(date)
         const dayOfWeek = date.getDay();
         date.setDate(date.getDate() - dayOfWeek + (boundDirection === "next" ? 7 : 0));
-        console.log(date)
         return date
     }
 
