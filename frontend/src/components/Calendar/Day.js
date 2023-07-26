@@ -8,7 +8,7 @@ function Day(props) {
 
     const curGame = playerGames[dateToGameIdx[date]]
     const played = curGame && curGame[4]
-    console.log(played && playedVisible)
+    const missCause = curGame && curGame[5]
 
     function getDayNum(fullDate) {
         const curDate = new Date(fullDate);
@@ -38,9 +38,9 @@ function Day(props) {
             <div className="game-info">
                 {curGame && curGame[3] + " " + curGame[2].slice(4)}
             </div>
-            <div className="game-info">
+            {missedVisible && !played && missCause && <div className="game-info">
                 {playerGames[dateToGameIdx[date]] && playerGames[dateToGameIdx[date]][5]}
-            </div>
+            </div>}
         </div>}
     </div>)
 }
