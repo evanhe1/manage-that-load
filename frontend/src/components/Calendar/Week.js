@@ -11,7 +11,6 @@ function Week(props) {
         for (let i = 0; i < 7; i++)
         {
             let date = new Date(start);
-            console.log(date)
             date.setDate(date.getDate() + i);
             days.push(date);
         }

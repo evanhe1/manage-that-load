@@ -5,9 +5,8 @@ import {players, curSeason} from '../../data'
 import './PlayerSettings.modules.css';
 import PlayerContext from "../../context/PlayerContext";
 
-function PlayerSettings(props) {
-    const { playedVisible, setPlayedVisible, missedVisible, setMissedVisible } = props;
-    const { playerID, playerGames, setPlayerGames, setTeamGP, setTeamAbr, season, setSeason, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs } = useContext(PlayerContext);
+function PlayerSettings() {
+    const { playerID, playerGames, setPlayerGames, setTeamGP, setTeamAbr, season, setSeason, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs, playedVisible, setPlayedVisible, missedVisible, setMissedVisible  } = useContext(PlayerContext);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const isMountedRef = useRef(0)

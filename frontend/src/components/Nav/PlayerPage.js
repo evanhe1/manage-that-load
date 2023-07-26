@@ -15,8 +15,6 @@ import GamesFilter from "../Settings/GamesFilter";
 function PlayerPage() {
     const { season, gamelogs } = useContext(PlayerContext)
     const [view, setView] = useState("list")
-    const [playedVisible, setPlayedVisible] = useState(true)
-    const [missedVisible, setMissedVisible] = useState(true)
     const [searchParams, setSearchParams] = useSearchParams();
 
     function getSundayBound(dateStr, boundDirection) {
@@ -46,9 +44,9 @@ function PlayerPage() {
         <Fragment>
             <PlayerInfo></PlayerInfo>
             <ViewSelect view={view} setView={setView}></ViewSelect>
-            <PlayerSettings playedVisible={playedVisible} setPlayedVisible={setPlayedVisible} missedVisible={missedVisible} setMissedVisible={setMissedVisible}></PlayerSettings>
-            {view == "calendar" && <GamesCalendar start={start} end={end}></GamesCalendar>}
-            {view == "list" && <GamesList playedVisible={playedVisible} missedVisible={missedVisible}></GamesList>}
+            <PlayerSettings></PlayerSettings>
+            {view == "calendar" && <GamesCalendar start={start} end={end} p></GamesCalendar>}
+            {view == "list" && <GamesList></GamesList>}
         </Fragment>
     )
 }
