@@ -4900,7 +4900,7 @@ export const teamToColor = {
     ZZZ: "#1a1a1a",
 }
 
-export const curSeason = "2022-23";
+export const curSeason = "2023-24";
 
 export const seasonDates= {
     "1946-1947": {
@@ -5210,5 +5210,9 @@ export const seasonDates= {
     "2022-23": {
     start: "2022-10-18",
     end: "2023-04-19"
+    },
+    "2023-24": {
+    start: "2023-10-24",
+    end: "2024-04-14"
     }
 };

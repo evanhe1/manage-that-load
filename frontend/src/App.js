@@ -19,10 +19,11 @@ function App() {
     const [gamelogs, setGamelogs] = useState({})
     const [playedVisible, setPlayedVisible] = useState(true)
     const [missedVisible, setMissedVisible] = useState(true)
+    const [playerObj, setPlayerObj] = useState([])
 
     return (
       <BrowserRouter>
-          <PlayerContext.Provider value={{ playerName, setPlayerName, playerID, setPlayerID, displayName, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx, season, setSeason, gamelogs, setGamelogs, playedVisible, setPlayedVisible, missedVisible, setMissedVisible }}>
+          <PlayerContext.Provider value={{ playerName, setPlayerName, playerID, setPlayerID, displayName, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx, season, setSeason, gamelogs, setGamelogs, playedVisible, setPlayedVisible, missedVisible, setMissedVisible, playerObj, setPlayerObj }}>
               <NavBar/>
               <Routes>
                   {["/", "/home"].map(pathStr => <Route path={pathStr} key={pathStr} element={<HomePage/>} />)}

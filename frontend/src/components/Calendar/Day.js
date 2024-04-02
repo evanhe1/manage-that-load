@@ -3,12 +3,12 @@ import PlayerContext from '../../context/PlayerContext';
 import './Day.modules.css';
 
 function Day(props) {
-    const { playerGames, dateToGameIdx, playedVisible, missedVisible } = useContext(PlayerContext);
+    const { playerGames, dateToGameIdx, playedVisible, missedVisible} = useContext(PlayerContext);
     const { date } = props;
 
     const curGame = playerGames[dateToGameIdx[date]]
-    const played = curGame && curGame[4]
-    const missCause = curGame && curGame[5]
+    const played = curGame && curGame['played']
+    const missCause = curGame && curGame['miss_cause']
 
     function getDayNum(fullDate) {
         const curDate = new Date(fullDate);
@@ -19,7 +19,7 @@ function Day(props) {
         if (date in dateToGameIdx)
         {
             const idx = dateToGameIdx[date];
-            if (playerGames[idx][4])
+            if (playerGames[idx]['played'])
                 return 'played';
             else
                 return 'missed';
@@ -36,10 +36,10 @@ function Day(props) {
         {(playedVisible && played || missedVisible && !played) &&
         <div>
             <div className="game-info">
-                {curGame && curGame[3] + " " + curGame[2].slice(4)}
+                {curGame && curGame['WL'] + " " + curGame['MATCHUP'].slice(4)}
             </div>
             {missedVisible && !played && missCause && <div className="game-info">
-                {playerGames[dateToGameIdx[date]] && playerGames[dateToGameIdx[date]][5]}
+                {playerGames[dateToGameIdx[date]] && playerGames[dateToGameIdx[date]]['miss_cause']}
             </div>}
         </div>}
     </div>)

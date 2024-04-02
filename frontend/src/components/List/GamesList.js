@@ -4,11 +4,11 @@ import 'bootstrap/dist/css/bootstrap.css';
 import "./GamesList.modules.css"
 
 function GamesList(props) {
-    const { playerGames, teamGP, playedVisible, missedVisible  } = useContext(PlayerContext)
+    const { playerGames, teamGP, playedVisible, missedVisible } = useContext(PlayerContext)
 
     return ( // idx === 3 refers to "miss_cause" column
         <div className="games-container">
-                {[...playerGames].reverse().map(([game_id, game_date, matchup, result, played, missCause, ...rest], r) =>
+                {[...playerGames].reverse().map(({'Game_ID':game_id, 'GAME_DATE':game_date, 'MATCHUP':matchup, 'WL':result, played, 'miss_cause':missCause, ...rest}, r) =>
                 <div className="row" key={game_id}>
                     {(playedVisible && played || missedVisible && !played) && [game_date, matchup, result].map((data, idx) =>
                     <div key={data} className=

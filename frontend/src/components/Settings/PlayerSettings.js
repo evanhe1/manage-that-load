@@ -6,7 +6,7 @@ import './PlayerSettings.modules.css';
 import PlayerContext from "../../context/PlayerContext";
 
 function PlayerSettings() {
-    const { playerID, playerGames, setPlayerGames, setTeamGP, setTeamAbr, season, setSeason, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs, playedVisible, setPlayedVisible, missedVisible, setMissedVisible  } = useContext(PlayerContext);
+    const { playerID, playerGames, setPlayerGames, setTeamGP, setTeamAbr, season, setSeason, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs, playedVisible, setPlayedVisible, missedVisible, setMissedVisible } = useContext(PlayerContext);
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const isMountedRef = useRef(0)
@@ -16,11 +16,11 @@ function PlayerSettings() {
         setSeason(season)
 
         if (Object.keys(gamelogs).length > 0) {
-            const curPlayerGames = Object.values(gamelogs[season]["gamelog"]).map(game => Object.values(game))
+            const curPlayerGames = Object.values(gamelogs[season]["gamelog"])
             setPlayerGames(curPlayerGames)
             setTeamGP(gamelogs[season]["gp"])
             setTeamAbr(gamelogs[season]["abr"])
-            setDateToGameIdx(Object.fromEntries(curPlayerGames.map((game, idx) => [game[1], idx])))
+            setDateToGameIdx(Object.fromEntries(curPlayerGames.map((game, idx) => [game['GAME_DATE'], idx])))
         }
     }
     function handleChange(event) {

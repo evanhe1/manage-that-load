@@ -10,19 +10,40 @@ import json
 import os
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
+from flask_apscheduler import APScheduler
 
 uri = os.environ.get("MONGO_URI")
 client = MongoClient(uri)
+print(uri, "fuck")
 
 db = client.nba.player_info
 
 currentMonth = datetime.today().month
 currentYear = datetime.today().year
-leagueYear = currentYear if currentMonth >= 7 else currentYear-1
 # @app.after_request
 # def per_request_callbacks(response):
 #     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
 #     return response
+
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
+
+def update_helper():
+    player_list = players.get_active_players()
+    for player in player_list:
+        print(player["full_name"])
+        player_id = player["id"]
+        response = get_player_info(player_id)
+        if not response:
+            continue
+        db.replace_one({"player_id": player_id}, json.loads(response.data))
+
+# @scheduler.task('interval', id='my_job', seconds=10)
+@scheduler.task('cron', id='update_db', hour=0, timezone='US/Pacific')
+def auto_update():
+    with scheduler.app.app_context():
+        update_helper()
 
 @app.route('/')
 @app.route('/games')
@@ -45,17 +66,16 @@ def get_player_info(player_id):
     data = {}
     df_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]
     df_profile = playerprofilev2.PlayerProfileV2(player_id=player_id).get_data_frames()[0]
-    season_to_team = {df_profile["SEASON_ID"][i]: {"TEAM_ID": str(df_profile["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df_profile["TEAM_ABBREVIATION"][i])} for i in df_profile["SEASON_ID"].keys()}
+    season_to_team = {df_profile["SEASON_ID"][i]: {"TEAM_ID": str(df_profile["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df_profile["TEAM_ABBREVIATION"][i])} for i in df_profile["SEASON_ID"].keys() if str(df_profile["TEAM_ABBREVIATION"][i]) != 'TOT'}
     first_played_season = list(season_to_team.keys())[0] if season_to_team.keys() else None
-    cur_season = int(df_info["FROM_YEAR"].iloc[0])
-    while f"{cur_season}-{int(str(cur_season)[2:])+1:02}" not in season_to_team and cur_season < currentYear:
-        season_id = f"{cur_season}-{int(str(cur_season)[2:])+1:02}"
-        if first_played_season:
-            season_to_team[season_id] = {"TEAM_ID": season_to_team[first_played_season]["TEAM_ID"], "TEAM_ABBREVIATION": season_to_team[first_played_season]["TEAM_ABBREVIATION"]}
-        else:
-            season_to_team[season_id] = {"TEAM_ID": df_info["TEAM_ID"].iloc[0], "TEAM_ABBREVIATION": df_info["TEAM_ABBREVIATION"].iloc[0]}
-        cur_season+=1
-
+    # cur_season = int(df_info["FROM_YEAR"].iloc[0])
+    # while f"{cur_season}-{int(str(cur_season)[2:])+1:02}" not in season_to_team and cur_season < currentYear:
+    #     season_id = f"{cur_season}-{int(str(cur_season)[2:])+1:02}"
+    #     if first_played_season:
+    #         season_to_team[season_id] = {"TEAM_ID": season_to_team[first_played_season]["TEAM_ID"], "TEAM_ABBREVIATION": season_to_team[first_played_season]["TEAM_ABBREVIATION"]}
+    #     else:
+    #         season_to_team[season_id] = {"TEAM_ID": df_info["TEAM_ID"].iloc[0], "TEAM_ABBREVIATION": df_info["TEAM_ABBREVIATION"].iloc[0]}
+    #     cur_season+=1
     for season in sorted(season_to_team.keys()):
         print(season)
         league_year = int(season[:4])
@@ -79,7 +99,7 @@ def get_player_info(player_id):
         data[season] = {}
         data[season]['gamelog'] = df_gl.to_dict(orient="index")
         data[season]['abr'] = cur_team_abr
-        if league_year == currentYear:
+        if league_year == currentYear-1 and currentMonth <= 4 or league_year == currentYear and currentMonth >= 10:
             df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id, season=season).get_data_frames()[0]["GP"]
             data[season]['gp'] = int(df_gp.to_string(index=False))
     data['player_id'] = player_id
@@ -205,15 +225,7 @@ def info():
 
 @app.route("/update")
 def update():
-    #db.delete_many({})
-    player_list = players.get_active_players()
-    for player in player_list:
-        print(player["full_name"])
-        player_id = player["id"]
-        response = get_player_info(player_id)
-        if not response:
-            continue
-        db.replace_one({"player_id": player_id}, json.loads(response.data))
+    update_helper()
     return Response(status=200)
 
 @app.route("/test")
@@ -229,4 +241,5 @@ def update_single():
     response = get_player_info(player_id)
     db.replace_one({"player_id": player_id}, json.loads(response.data))
     return Response(status=200)
+
 

@@ -7,10 +7,10 @@ import { teamToColor}  from "../../data"
 function PlayerInfo() {
     const { displayName, playerID, playerGames, teamGP, teamAbr, season } = useContext(PlayerContext)
     const totalGames = playerGames.length
-    const gamesPlayed = playerGames.filter(game => game[4] === true).length
+    const gamesPlayed = playerGames.filter(game => game['played'] === true).length
     const gamesMissed = totalGames - gamesPlayed;
     const gamesLeft = 82 - teamGP
-    const gamesPlayedPace = gamesPlayed + (teamAbr.length > 0 ? gamesPlayed : 0) / totalGames * gamesLeft;
+    const gamesPlayedPace = gamesPlayed + Math.round((teamAbr.length > 0 ? gamesPlayed : 0) / totalGames * gamesLeft);
     let statusString = "";
     if (season === '2023-24') {
         if (gamesPlayed >= 65) {

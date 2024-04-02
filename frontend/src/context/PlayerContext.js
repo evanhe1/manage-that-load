@@ -19,7 +19,9 @@ const PlayerContext = createContext(
         season: "",
         setSeason: () => {},
         gamelogs: {},
-        setGamelogs: () => {}
+        setGamelogs: () => {},
+        playerObj: [],
+        setPlayerObj: () => {},
     })
 
 export default PlayerContext;

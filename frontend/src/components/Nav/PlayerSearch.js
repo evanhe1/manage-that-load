@@ -11,7 +11,7 @@ function PlayerSearch() {
     const [searchResults, setSearchResults] = useState([]);
     const isMountedRef = useRef(0)
     const inputRef = useRef(null)
-    const { playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs } = useContext(PlayerContext);
+    const { playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs, playerObj, setPlayerObj } = useContext(PlayerContext);
     const navigate = useNavigate();
     const loc = useLocation();
 
@@ -54,8 +54,8 @@ function PlayerSearch() {
         }
         else {
             setDisplayName(null);
-            const endpoints = [`http://127.0.0.1:5000/games?id=${playerID}`, `http://127.0.0.1:5000/gp?id=${playerID}`]
-            axios.get(`https://mtl-backend-3wnzf7w4ia-uc.a.run.app/games?id=${playerID}`, {
+            const endpoints = [`http://127.0.0.1:8001/games?id=${playerID}`, `http://127.0.0.1:8001/gp?id=${playerID}`, `https://mtl-backend-3wnzf7w4ia-uc.a.run.app/games?id=${playerID}`, `https://mtl-backend-3wnzf7w4ia-uc.a.run.app/gp?id=${playerID}`]
+            axios.get(endpoints[2], {
                 headers: {
                     "Content-Type": "application/json"
                 }
@@ -73,6 +73,7 @@ function PlayerSearch() {
                 const gp = res.data[curSeason]["gp"]
                 const abr = res.data[curSeason]["abr"]
                 const gamesArr = Object.values(games).map(game => Object.values(game));
+                const gamesObj = Object.values(games)
                 setPlayerGames(gamesArr);
                 setTeamGP(gp)
                 setGamelogs(curGamelogs)
@@ -82,7 +83,7 @@ function PlayerSearch() {
                     setDisplayName(curResults[0][3])
                 }
                 setTeamAbr(abr)
-                setDateToGameIdx(Object.fromEntries(gamesArr.map((game, idx) => [game[1], idx])))
+                setDateToGameIdx(Object.fromEntries(gamesArr.map((game, idx) => [game['GAME_DATE'], idx])))
             }).catch(console.error)
         }
     }, [playerID])
