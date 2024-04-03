@@ -1,5 +1,6 @@
 from nba_api.stats.endpoints import playergamelog, teamgamelog, commonplayerinfo, teamdashboardbygeneralsplits, playerprofilev2
-from nba_api.stats.static import players
+from nba_api.stats.static import players, teams
+from nba_api.stats.library.parameters import SeasonAll, Season
 from . import app
 from flask import request, jsonify, Response
 from datetime import datetime, timedelta
@@ -8,6 +9,7 @@ import pandas as pd
 import numpy as np
 import json
 import os
+import sys
 from bs4 import BeautifulSoup
 from pymongo import MongoClient
 from flask_apscheduler import APScheduler
@@ -19,6 +21,8 @@ db = client.nba.player_info
 
 currentMonth = datetime.today().month
 currentYear = datetime.today().year
+maxYear = currentYear-1 if currentMonth <= 10 else currentYear
+
 # @app.after_request
 # def per_request_callbacks(response):
 #     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
@@ -28,18 +32,32 @@ scheduler = APScheduler()
 scheduler.init_app(app)
 scheduler.start()
 
+team_ids = [team['id'] for team in teams.get_teams()]
+df_team_gamelogs = {}
+for id in team_ids:
+    cur_gamelogs = teamgamelog.TeamGameLog(team_id=id, season=SeasonAll.all,
+                                           date_from_nullable='10/25/2003').get_data_frames()[0]
+    cur_gamelogs['Date_idx'] = pd.to_datetime(cur_gamelogs['GAME_DATE'], format='%b %d, %Y').dt.strftime('%Y-%m-%d')
+    df_team_gamelogs[id] = {}
+    for year in range(2003, maxYear+1):
+        df_team_gamelogs[id][year] = cur_gamelogs[(cur_gamelogs['Date_idx'] >= f'{year}-10-01') &
+                                            (cur_gamelogs['Date_idx'] <= f'{year + 1}-09-30')]
+
 def update_helper():
     player_list = players.get_active_players()
-    for player in player_list[340:]:
+    for player in player_list:
         print(player["full_name"])
         player_id = player["id"]
-        response = get_player_info(player_id)
-        if not response:
-            continue
-        db.replace_one({"player_id": player_id}, json.loads(response.data))
+        try:
+            response = get_player_info(player_id)
+            if not response:
+                continue
+            db.replace_one({"player_id": player_id}, json.loads(response.data))
+        except Exception as e:
+            print(e, file=sys.stderr)
 
-# @scheduler.task('interval', id='my_job', seconds=10)
-@scheduler.task('cron', id='update_db', hour=0, timezone='US/Pacific')
+@scheduler.task('cron', id='update_db_midnight', hour=0, timezone='US/Pacific')
+@scheduler.task('cron', id='update_db_noon', hour=12, timezone='US/Pacific')
 def auto_update():
     with scheduler.app.app_context():
         update_helper()
@@ -75,20 +93,19 @@ def get_player_info(player_id):
     #     else:
     #         season_to_team[season_id] = {"TEAM_ID": df_info["TEAM_ID"].iloc[0], "TEAM_ABBREVIATION": df_info["TEAM_ABBREVIATION"].iloc[0]}
     #     cur_season+=1
-    for season in sorted(season_to_team.keys())[-1:]:
+    player_games = playergamelog.PlayerGameLog(player_id=player_id, season=SeasonAll.all)
+    df_player = player_games.get_data_frames()[0]
+    for season in sorted(season_to_team.keys()):
         print(season)
         league_year = int(season[:4])
 
         player_hist = generate_transaction_history(player_id, season)
-        injuries_hist = generate_injury_history(player_id, season)
+        injuries_hist = generate_injury_history(player_id, league_year)
 
         cur_team_id = season_to_team[season]["TEAM_ID"]
         cur_team_abr = season_to_team[season]["TEAM_ABBREVIATION"]
 
-        df_team = build_df_team(player_hist, cur_team_id, season)
-
-        player_games = playergamelog.PlayerGameLog(player_id=player_id, season=season)
-        df_player = player_games.get_data_frames()[0]
+        df_team = build_df_team(player_hist, int(cur_team_id), season)
 
         df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
         df_gl["played"] = df_gl._merge != 'left_only'
@@ -128,8 +145,8 @@ def generate_transaction_history(player_id, season):
         prev_date_str = str(t_date - timedelta(days=1))[:10]
         next_date_str = str(t_date + timedelta(days=1))[:10] # one day buffer before counting as game missed
         t_date_str = format_date(t_date_str)
-        prev_date_str = format_date(prev_date_str)
-        next_date_str = format_date(next_date_str)
+        # prev_date_str = format_date(prev_date_str)
+        # next_date_str = format_date(next_date_str)
 
         if t_type == "Signing":
             player_hist.append({"team_id": t_team_1, "date_from": next_date_str, "date_to": None})
@@ -146,32 +163,33 @@ def generate_transaction_history(player_id, season):
                 player_hist.append({"team_id": t_team_1, "date_from": None, "date_to": prev_date_str})
 
     if player_hist and player_hist[-1]["date_to"] is None:
-        player_hist[-1]["date_to"] = f"07/01/{league_year+1}"
+        player_hist[-1]["date_to"] = f"{league_year+1}-07-01"
     return player_hist
 
 
-def build_df_team(player_hist, cur_team_id, season):
+def build_df_team(player_hist, team_id, season):
     df_team = pd.DataFrame()
+    league_year = int(season[:4])
     # reverse order so most recent team info comes first
     if player_hist:
         for stint in player_hist[::-1]:
             team_id = stint["team_id"]
             date_from = stint["date_from"]
             date_to = stint["date_to"]
-            new_team = teamgamelog.TeamGameLog(team_id=team_id, season=season, date_from_nullable=date_from, date_to_nullable=date_to).get_data_frames()[0]
+            new_team = df_team_gamelogs[team_id][league_year][(df_team_gamelogs[team_id][league_year]['Date_idx'] >= date_from) & (df_team_gamelogs[team_id][league_year]['Date_idx'] <= date_to)]
+            # new_team = teamgamelog.TeamGameLog(team_id=team_id, season=season, date_from_nullable=date_from, date_to_nullable=date_to).get_data_frames()[0]
             df_team = pd.concat([df_team, new_team])
     else:
-        team_id = cur_team_id
-        df_team = teamgamelog.TeamGameLog(team_id=team_id, season=season).get_data_frames()[0]
+        df_team = df_team_gamelogs[team_id][league_year]
+        #df_team = teamgamelog.TeamGameLog(team_id=cur_team_id, season=str(season)).get_data_frames()[0]
     return df_team
 
 def format_date(date):
     # produce mm/dd/yyyy
     return date[5:7].lstrip('0') + '/' + date[8:].lstrip('0') + '/' + date[0:4]
 
-def generate_injury_history(player_id, season):
+def generate_injury_history(player_id, league_year):
     player_name = players.find_player_by_id(player_id)['full_name'].replace(" ", "+")
-    league_year = int(season[:4])
     url = f"https://www.prosportstransactions.com/basketball/Search/SearchResults.php?Player={player_name}&Team=&BeginDate={league_year}-07-01&EndDate={league_year+1}-06-30&ILChkBx=yes&InjuriesChkBx=yes&PersonalChkBx=yes&DisciplinaryChkBx=yes&Submit=Search"
     response = requests.get(url)
     soup = BeautifulSoup(response.content, "html.parser")
