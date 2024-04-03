@@ -14,7 +14,6 @@ from flask_apscheduler import APScheduler
 
 uri = os.environ.get("MONGO_URI")
 client = MongoClient(uri)
-print(uri, "fuck")
 
 db = client.nba.player_info
 
@@ -31,7 +30,7 @@ scheduler.start()
 
 def update_helper():
     player_list = players.get_active_players()
-    for player in player_list:
+    for player in player_list[340:]:
         print(player["full_name"])
         player_id = player["id"]
         response = get_player_info(player_id)
@@ -76,7 +75,7 @@ def get_player_info(player_id):
     #     else:
     #         season_to_team[season_id] = {"TEAM_ID": df_info["TEAM_ID"].iloc[0], "TEAM_ABBREVIATION": df_info["TEAM_ABBREVIATION"].iloc[0]}
     #     cur_season+=1
-    for season in sorted(season_to_team.keys()):
+    for season in sorted(season_to_team.keys())[-1:]:
         print(season)
         league_year = int(season[:4])
 
@@ -114,7 +113,7 @@ def generate_transaction_history(player_id, season):
     df["TEAM_ID"] = df["TEAM_ID"].astype(np.int64)
     df["Additional_Sort"] = df["Additional_Sort"].astype(np.int64)
     league_year = int(season[:4])
-    df = df[(df["PLAYER_ID"]==player_id) & (df["TRANSACTION_DATE"]>=f"{league_year}-07-01") & (df["TRANSACTION_DATE"]<=f"{league_year+1}-06-30")][["Transaction_Type", "TRANSACTION_DATE", "TEAM_ID", "Additional_Sort"]][::-1]
+    df = df[(df["PLAYER_ID"]==player_id) & (df["TRANSACTION_DATE"]>=f"{league_year}-07-01") & (df["TRANSACTION_DATE"]<=f"{league_year+1}-06-30")][["Transaction_Type", "TRANSACTION_DATE", "TRANSACTION_DESCRIPTION", "TEAM_ID", "Additional_Sort"]][::-1]
 
     player_hist = []
     for _, t in df.iterrows():
@@ -122,6 +121,9 @@ def generate_transaction_history(player_id, season):
         t_team_1 = t["TEAM_ID"]
         t_team_2 = t["Additional_Sort"]
         t_date_str = t["TRANSACTION_DATE"][:10]
+        t_desc = t["TRANSACTION_DESCRIPTION"]
+        if "re-signed" in t_desc:
+            continue
         t_date = datetime.strptime(t_date_str, "%Y-%m-%d")
         prev_date_str = str(t_date - timedelta(days=1))[:10]
         next_date_str = str(t_date + timedelta(days=1))[:10] # one day buffer before counting as game missed

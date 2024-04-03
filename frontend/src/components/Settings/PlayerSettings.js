@@ -33,7 +33,16 @@ function PlayerSettings() {
         if (seasonParam) {
             updateDisplay(seasonParam)
         } else {
-            updateDisplay(curSeason)
+            let season = curSeason;
+            if (Object.keys(gamelogs).length > 0) {
+                while (season in gamelogs === false) {
+                    const [startYear, ...rest] = season.split('-').map(Number);
+                    const previousStartYear = startYear - 1;
+                    const previousEndYear = startYear.toString().slice(-2);
+                    season = `${previousStartYear}-${previousEndYear}`;
+                }
+                updateDisplay(season)
+            }
         }
     }, [gamelogs])
     // gamelogs are reloaded on every refresh/input change,

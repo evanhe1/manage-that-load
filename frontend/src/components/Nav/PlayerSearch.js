@@ -11,7 +11,7 @@ function PlayerSearch() {
     const [searchResults, setSearchResults] = useState([]);
     const isMountedRef = useRef(0)
     const inputRef = useRef(null)
-    const { playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs, playerObj, setPlayerObj } = useContext(PlayerContext);
+    const { playerName, setPlayerName, playerID, setPlayerID, setDisplayName, playerGames, setPlayerGames, teamGP, setTeamGP, teamAbr, setTeamAbr, dateToGameIdx, setDateToGameIdx, gamelogs, setGamelogs, season, setSeason } = useContext(PlayerContext);
     const navigate = useNavigate();
     const loc = useLocation();
 
@@ -68,15 +68,21 @@ function PlayerSearch() {
                     }
 
                 }
-                // console.log(curGamelogs)
-                const games = res.data[curSeason]["gamelog"]
-                const gp = res.data[curSeason]["gp"]
-                const abr = res.data[curSeason]["abr"]
+                let season = curSeason;
+                while (!(season in res.data)) {
+                    const [startYear, ...rest] = season.split('-').map(Number);
+                    const previousStartYear = startYear - 1;
+                    const previousEndYear = startYear.toString().slice(-2);
+                    season =  `${previousStartYear}-${previousEndYear}`;
+                }
+                const games = res.data[season]["gamelog"]
+                const gp = res.data[season]["gp"]
+                const abr = res.data[season]["abr"]
                 const gamesArr = Object.values(games).map(game => Object.values(game));
-                const gamesObj = Object.values(games)
                 setPlayerGames(gamesArr);
                 setTeamGP(gp)
                 setGamelogs(curGamelogs)
+                setSeason(season)
                 const curResults = players.filter(player => player[0] === playerID && player[4] === true)
                 //console.log(curResults)
                 if (curResults) {
