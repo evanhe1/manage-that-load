@@ -15,6 +15,7 @@ from pymongo import MongoClient
 from flask_apscheduler import APScheduler
 
 uri = os.environ.get("MONGO_URI")
+API_TOKEN = os.environ.get("API_KEY")
 client = MongoClient(uri)
 
 db = client.nba.player_info
@@ -22,29 +23,37 @@ db = client.nba.player_info
 currentMonth = datetime.today().month
 currentYear = datetime.today().year
 maxYear = currentYear-1 if currentMonth <= 10 else currentYear
+curSeason = f'{maxYear}-{str(maxYear+1)[2:]}'
 
 # @app.after_request
 # def per_request_callbacks(response):
 #     response.headers['Access-Control-Allow-Origin'] = 'http://localhost:3000'
 #     return response
 
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
+# scheduler = APScheduler()
+# scheduler.init_app(app)
+# scheduler.start()
 
-team_ids = [team['id'] for team in teams.get_teams()]
 df_team_gamelogs = {}
-for id in team_ids:
-    cur_gamelogs = teamgamelog.TeamGameLog(team_id=id, season=SeasonAll.all,
-                                           date_from_nullable='10/25/2003').get_data_frames()[0]
-    cur_gamelogs['Date_idx'] = pd.to_datetime(cur_gamelogs['GAME_DATE'], format='%b %d, %Y').dt.strftime('%Y-%m-%d')
-    df_team_gamelogs[id] = {}
-    for year in range(2003, maxYear+1):
-        df_team_gamelogs[id][year] = cur_gamelogs[(cur_gamelogs['Date_idx'] >= f'{year}-10-01') &
-                                            (cur_gamelogs['Date_idx'] <= f'{year + 1}-09-30')]
+team_gp = {}
+
+def preprocess():
+    team_ids = [team['id'] for team in teams.get_teams()]
+    for id in team_ids:
+        cur_gamelogs = teamgamelog.TeamGameLog(team_id=id, season=SeasonAll.all,
+                                               date_from_nullable='10/25/2003').get_data_frames()[0]
+        cur_gamelogs['Date_idx'] = pd.to_datetime(cur_gamelogs['GAME_DATE'], format='%b %d, %Y').dt.strftime('%Y-%m-%d')
+        team_gp[id] = int(teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=id,
+                                                                                    season=curSeason).get_data_frames()[0]["GP"].to_string(index=False))
+        df_team_gamelogs[id] = {}
+        for year in range(2003, maxYear+1):
+            df_team_gamelogs[id][year] = cur_gamelogs[(cur_gamelogs['Date_idx'] >= f'{year}-10-01') &
+                                                      (cur_gamelogs['Date_idx'] <= f'{year + 1}-09-30')]
+
 
 def update_helper():
     player_list = players.get_active_players()
+    preprocess()
     for player in player_list:
         print(player["full_name"])
         player_id = player["id"]
@@ -56,11 +65,11 @@ def update_helper():
         except Exception as e:
             print(e, file=sys.stderr)
 
-@scheduler.task('cron', id='update_db_midnight', hour=0, timezone='US/Pacific')
-@scheduler.task('cron', id='update_db_noon', hour=12, timezone='US/Pacific')
-def auto_update():
-    with scheduler.app.app_context():
-        update_helper()
+# @scheduler.task('cron', id='update_db_midnight', hour=0, timezone='US/Pacific')
+# @scheduler.task('cron', id='update_db_noon', hour=12, timezone='US/Pacific')
+# def auto_update():
+#     with scheduler.app.app_context():
+#         update_helper()
 
 @app.route('/')
 @app.route('/games')
@@ -81,7 +90,7 @@ def index():
 
 def get_player_info(player_id):
     data = {}
-    df_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]
+    # df_info = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]
     df_profile = playerprofilev2.PlayerProfileV2(player_id=player_id).get_data_frames()[0]
     season_to_team = {df_profile["SEASON_ID"][i]: {"TEAM_ID": str(df_profile["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df_profile["TEAM_ABBREVIATION"][i])} for i in df_profile["SEASON_ID"].keys() if str(df_profile["TEAM_ABBREVIATION"][i]) != 'TOT'}
     first_played_season = list(season_to_team.keys())[0] if season_to_team.keys() else None
@@ -102,10 +111,10 @@ def get_player_info(player_id):
         player_hist = generate_transaction_history(player_id, season)
         injuries_hist = generate_injury_history(player_id, league_year)
 
-        cur_team_id = season_to_team[season]["TEAM_ID"]
+        cur_team_id = int(season_to_team[season]["TEAM_ID"])
         cur_team_abr = season_to_team[season]["TEAM_ABBREVIATION"]
 
-        df_team = build_df_team(player_hist, int(cur_team_id), season)
+        df_team = build_df_team(player_hist, cur_team_id, season)
 
         df_gl = df_team.merge(df_player["Game_ID"], indicator=True, how="left", on="Game_ID")
         df_gl["played"] = df_gl._merge != 'left_only'
@@ -116,8 +125,8 @@ def get_player_info(player_id):
         data[season]['gamelog'] = df_gl.to_dict(orient="index")
         data[season]['abr'] = cur_team_abr
         if league_year == currentYear-1 and currentMonth <= 4 or league_year == currentYear and currentMonth >= 10:
-            df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id, season=season).get_data_frames()[0]["GP"]
-            data[season]['gp'] = int(df_gp.to_string(index=False))
+            # df_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=cur_team_id, season=season).get_data_frames()[0]["GP"]
+            data[season]['gp'] = team_gp[cur_team_id]
     data['player_id'] = player_id
     response = jsonify(data)
     return response
@@ -145,8 +154,6 @@ def generate_transaction_history(player_id, season):
         prev_date_str = str(t_date - timedelta(days=1))[:10]
         next_date_str = str(t_date + timedelta(days=1))[:10] # one day buffer before counting as game missed
         t_date_str = format_date(t_date_str)
-        # prev_date_str = format_date(prev_date_str)
-        # next_date_str = format_date(next_date_str)
 
         if t_type == "Signing":
             player_hist.append({"team_id": t_team_1, "date_from": next_date_str, "date_to": None})
@@ -162,8 +169,10 @@ def generate_transaction_history(player_id, season):
             else:
                 player_hist.append({"team_id": t_team_1, "date_from": None, "date_to": prev_date_str})
 
+    if player_hist and player_hist[0]["date_from"] is None:
+        player_hist[-1]["date_from"] = f"{league_year}-07-01"
     if player_hist and player_hist[-1]["date_to"] is None:
-        player_hist[-1]["date_to"] = f"{league_year+1}-07-01"
+        player_hist[-1]["date_to"] = f"{league_year+1}-06-30"
     return player_hist
 
 
@@ -177,11 +186,9 @@ def build_df_team(player_hist, team_id, season):
             date_from = stint["date_from"]
             date_to = stint["date_to"]
             new_team = df_team_gamelogs[team_id][league_year][(df_team_gamelogs[team_id][league_year]['Date_idx'] >= date_from) & (df_team_gamelogs[team_id][league_year]['Date_idx'] <= date_to)]
-            # new_team = teamgamelog.TeamGameLog(team_id=team_id, season=season, date_from_nullable=date_from, date_to_nullable=date_to).get_data_frames()[0]
             df_team = pd.concat([df_team, new_team])
     else:
         df_team = df_team_gamelogs[team_id][league_year]
-        #df_team = teamgamelog.TeamGameLog(team_id=cur_team_id, season=str(season)).get_data_frames()[0]
     return df_team
 
 def format_date(date):
@@ -239,24 +246,35 @@ def search():
 def info():
     player_id = int(request.args['id'])
     team_id = commonplayerinfo.CommonPlayerInfo(player_id=player_id).get_data_frames()[0]["TEAM_ID"]
-    team_gp = teamdashboardbygeneralsplits.TeamDashboardByGeneralSplits(team_id=team_id).get_data_frames()[0]["GP"]
-
-    return team_gp.json()
+    gp = team_gp[team_id]
+    return gp.json()
 
 @app.route("/update")
 def update():
-    update_helper()
-    return Response(status=200)
+    # Get the token from the request headers
+    token = request.headers.get("Authorization")
+
+    # Verify the token
+    if token == f"Bearer {API_TOKEN}":
+        update_helper()
+        return Response(status=200)
+    else:
+        # Token is invalid, deny the request
+        return Response(status=401)
+# def update():
+#     update_helper()
+#     return Response(status=200)
 
 @app.route("/test")
 def test():
-    df = commonplayerinfo.CommonPlayerInfo(player_id=1631096).get_data_frames()[0]
+    df = commonplayerinfo.CommonPlayerInfo(player_id=2544).get_data_frames()[0]
     #season_to_team = {df["SEASON_ID"][i]: {"TEAM_ID": str(df["TEAM_ID"][i]), "TEAM_ABBREVIATION": str(df["TEAM_ABBREVIATION"][i])} for i in df["SEASON_ID"].keys()}
     #print(season_to_team)
     return jsonify(df.to_dict())
 
-@app.route("/update_single")
+@app.route("/update_one")
 def update_single():
+    preprocess()
     player_id = int(request.args['id'])
     response = get_player_info(player_id)
     db.replace_one({"player_id": player_id}, json.loads(response.data))
